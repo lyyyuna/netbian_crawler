@@ -7,14 +7,26 @@ defmodule NetbianCrawler.Application do
 
   @impl true
   def start(_type, _args) do
+    starter_page = Application.get_env(:netbian_crawler, :starter)
+
     children = [
-      # Starts a worker by calling: NetbianCrawler.Worker.start_link(arg)
-      # {NetbianCrawler.Worker, arg}
+      {Finch, name: Crawler},
+      :poolboy.child_spec(:worker, poolboy_config()),
+      Supervisor.child_spec({Task, fn -> NetbianCrawler.Master.start(starter_page) end}, restart: :temporary)
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: NetbianCrawler.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp poolboy_config do
+    [
+      name: {:local, :worker},
+      worker_module: NetbianCrawler.Worker,
+      size: 3,
+      max_overflow: 1
+    ]
   end
 end
